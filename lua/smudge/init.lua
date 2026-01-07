@@ -2,14 +2,17 @@ local M = {}
 
 local ns = vim.api.nvim_create_namespace("smudge")
 
-M.config = {
+-- Default options (lazy.nvim style)
+local defaults = {
   char = "░",        -- smear character
   hl = "SmudgeCursor",
   max_age = 80,      -- ms before smear disappears
   length = 2,        -- max trail length
 }
 
+M.opts = {}
 local last_pos = nil
+local augroup = nil
 
 local function place_smear(buf, row, col)
   -- Guard against invalid positions
@@ -19,7 +22,7 @@ local function place_smear(buf, row, col)
 
   local id = vim.api.nvim_buf_set_extmark(buf, ns, row, col, {
     virt_text = {
-      { M.config.char, M.config.hl },
+      { M.opts.char, M.opts.hl },
     },
     virt_text_pos = "overlay",
     hl_mode = "blend",
@@ -27,7 +30,7 @@ local function place_smear(buf, row, col)
 
   vim.defer_fn(function()
     pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
-  end, M.config.max_age)
+  end, M.opts.max_age)
 end
 
 local function on_move()
@@ -49,7 +52,7 @@ local function on_move()
 
     if adx > 0 then
       local step = dx > 0 and -1 or 1
-      local count = math.min(M.config.length, adx)
+      local count = math.min(M.opts.length, adx)
 
       for i = 1, count do
         place_smear(buf, row, col + step * i)
@@ -64,7 +67,7 @@ local function on_move()
 
     if ady > 0 then
       local step = dy > 0 and -1 or 1
-      local count = math.min(M.config.length, ady)
+      local count = math.min(M.opts.length, ady)
 
       for i = 1, count do
         place_smear(buf, row + step * i, col)
@@ -75,22 +78,36 @@ local function on_move()
   last_pos = { row, col }
 end
 
-function M.enable()
+local function enable()
+  if augroup then
+    return -- already enabled
+  end
+
+  augroup = vim.api.nvim_create_augroup("Smudge", { clear = true })
+
   vim.api.nvim_create_autocmd("CursorMoved", {
-    group = vim.api.nvim_create_augroup("Smudge", { clear = true }),
+    group = augroup,
     callback = on_move,
   })
 end
 
-function M.disable()
-  pcall(vim.api.nvim_del_augroup_by_name, "Smudge")
+local function disable()
+  if augroup then
+    pcall(vim.api.nvim_del_augroup_by_id, augroup)
+    augroup = nil
+  end
+
   vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
   last_pos = nil
 end
 
 function M.setup(opts)
-  M.config = vim.tbl_extend("force", M.config, opts or {})
-  M.enable()
+  M.opts = vim.tbl_deep_extend("force", {}, defaults, opts or {})
+  enable()
 end
+
+-- Optional public API
+M.enable = enable
+M.disable = disable
 
 return M
