@@ -3,21 +3,26 @@ local M = {}
 local ns = vim.api.nvim_create_namespace("smudge")
 
 M.config = {
-  char = "█",        -- smear character
+  char = "░",        -- smear character
   hl = "SmudgeCursor",
   max_age = 80,      -- ms before smear disappears
-  length = 2,        -- how many cells behind cursor
+  length = 2,        -- max trail length
 }
 
 local last_pos = nil
 
 local function place_smear(buf, row, col)
+  -- Guard against invalid positions
+  if row < 0 or col < 0 then
+    return
+  end
+
   local id = vim.api.nvim_buf_set_extmark(buf, ns, row, col, {
     virt_text = {
       { M.config.char, M.config.hl },
     },
     virt_text_pos = "overlay",
-    hl_mode = "combine",
+    hl_mode = "blend",
   })
 
   vim.defer_fn(function()
@@ -37,20 +42,33 @@ local function on_move()
 
   local lr, lc = last_pos[1], last_pos[2]
 
-  -- Only smear if cursor actually moved
-  if row ~= lr or col ~= lc then
-    -- Horizontal smear
+  -- Horizontal movement
+  if row == lr then
     local dx = col - lc
-    if row == lr and dx ~= 0 then
+    local adx = math.abs(dx)
+
+    if adx > 0 then
       local step = dx > 0 and -1 or 1
-      for i = 1, M.config.length do
+      local count = math.min(M.config.length, adx)
+
+      for i = 1, count do
         place_smear(buf, row, col + step * i)
       end
     end
+  end
 
-    -- Vertical smear (simpler)
-    if col == lc and row ~= lr then
-      place_smear(buf, lr, lc)
+  -- Vertical movement
+  if col == lc then
+    local dy = row - lr
+    local ady = math.abs(dy)
+
+    if ady > 0 then
+      local step = dy > 0 and -1 or 1
+      local count = math.min(M.config.length, ady)
+
+      for i = 1, count do
+        place_smear(buf, row + step * i, col)
+      end
     end
   end
 
@@ -65,8 +83,9 @@ function M.enable()
 end
 
 function M.disable()
-  vim.api.nvim_del_augroup_by_name("Smudge")
+  pcall(vim.api.nvim_del_augroup_by_name, "Smudge")
   vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
+  last_pos = nil
 end
 
 function M.setup(opts)
