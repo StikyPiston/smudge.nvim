@@ -1,5 +1,7 @@
 # smudge.nvim
 
+![A demo of smudge.nvim](assets/demo.mp4)
+
 **smudge.nvim** is a performant cursor animation plugin for Neovim!
 
 ## Installation (lazy.nvim)
