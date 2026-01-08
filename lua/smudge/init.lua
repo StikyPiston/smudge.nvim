@@ -15,9 +15,27 @@ local last_pos = nil
 local augroup = nil
 
 local function place_smear(buf, row, col)
-	-- Guard against invalid positions
-	if row < 0 or col < 0 then
+	-- Validate row
+	local line_count = vim.api.nvim_buf_line_count(buf)
+	if row < 0 or row >= line_count then
 		return
+	end
+
+	-- Validate column against line length
+	local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, true)[1]
+	if not line then
+		return
+	end
+
+	local max_col = #line
+	if max_col == 0 then
+		return
+	end
+
+	if col < 0 then
+		col = 0
+	elseif col > max_col - 1 then
+		col = max_col - 1
 	end
 
 	local id = vim.api.nvim_buf_set_extmark(buf, ns, row, col, {
@@ -80,7 +98,7 @@ end
 
 local function enable()
 	if augroup then
-		return -- already enabled
+		return
 	end
 
 	augroup = vim.api.nvim_create_augroup("Smudge", { clear = true })
@@ -106,7 +124,6 @@ function M.setup(opts)
 	enable()
 end
 
--- Optional public API
 M.enable = enable
 M.disable = disable
 
