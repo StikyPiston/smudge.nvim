@@ -4,7 +4,7 @@
 ---@field opts? SmudgeOpts
 local M = {}
 
-local ns = vim.api.nvim_create_namespace("smudge")
+M.ns = vim.api.nvim_create_namespace("smudge")
 
 --Default options (lazy.nvim style)
 ---@class SmudgeOpts
@@ -45,7 +45,7 @@ local function place_smear(buf, row, col)
 		col = max_col - 1
 	end
 
-	local id = vim.api.nvim_buf_set_extmark(buf, ns, row, col, {
+	local id = vim.api.nvim_buf_set_extmark(buf, M.ns, row, col, {
 		virt_text = {
 			{ M.opts.char, M.opts.hl },
 		},
@@ -54,7 +54,7 @@ local function place_smear(buf, row, col)
 	})
 
 	vim.defer_fn(function()
-		pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
+		pcall(vim.api.nvim_buf_del_extmark, buf, M.ns, id)
 	end, M.opts.max_age)
 end
 
@@ -122,7 +122,7 @@ function M.disable()
 		M.augroup = nil
 	end
 
-	vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
+	vim.api.nvim_buf_clear_namespace(0, M.ns, 0, -1)
 	M.last_pos = nil
 end
 
