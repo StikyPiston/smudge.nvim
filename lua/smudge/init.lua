@@ -1,23 +1,30 @@
+---@class Smudge
+---@field last_pos? { [1]: integer, [2]: integer }
+---@field augroup? integer
+---@field opts? SmudgeOpts
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("smudge")
 
--- Default options (lazy.nvim style)
+--Default options (lazy.nvim style)
+---@class SmudgeOpts
+---@field char? string smear character
+---@field hl? string
+---@field max_age? integer ms before smear disappears
+---@field length? integer max trail length
 local defaults = {
-	char = "░", -- smear character
+	char = "░",
 	hl = "SmudgeCursor",
-	max_age = 80, -- ms before smear disappears
-	length = 2, -- max trail length
+	max_age = 80,
+	length = 2,
 }
 
-M.opts = {}
-local last_pos = nil
-local augroup = nil
-
+---@param buf integer Buffer ID
+---@param row integer Selected row
+---@param col integer Selected column
 local function place_smear(buf, row, col)
 	-- Validate row
-	local line_count = vim.api.nvim_buf_line_count(buf)
-	if row < 0 or row >= line_count then
+	if row < 0 or row >= vim.api.nvim_buf_line_count(buf) then
 		return
 	end
 
@@ -27,7 +34,7 @@ local function place_smear(buf, row, col)
 		return
 	end
 
-	local max_col = #line
+	local max_col = line:len()
 	if max_col == 0 then
 		return
 	end
@@ -56,12 +63,12 @@ local function on_move()
 	local pos = vim.api.nvim_win_get_cursor(0)
 	local row, col = pos[1] - 1, pos[2]
 
-	if not last_pos then
-		last_pos = { row, col }
+	if not M.last_pos then
+		M.last_pos = { row, col }
 		return
 	end
 
-	local lr, lc = last_pos[1], last_pos[2]
+	local lr, lc = M.last_pos[1], M.last_pos[2]
 
 	-- Horizontal movement
 	if row == lr then
@@ -93,38 +100,37 @@ local function on_move()
 		end
 	end
 
-	last_pos = { row, col }
+	M.last_pos = { row, col }
 end
 
-local function enable()
-	if augroup then
+function M.enable()
+	if M.augroup then
 		return
 	end
 
-	augroup = vim.api.nvim_create_augroup("Smudge", { clear = true })
+	M.augroup = vim.api.nvim_create_augroup("Smudge", { clear = true })
 
 	vim.api.nvim_create_autocmd("CursorMoved", {
-		group = augroup,
+		group = M.augroup,
 		callback = on_move,
 	})
 end
 
-local function disable()
-	if augroup then
-		pcall(vim.api.nvim_del_augroup_by_id, augroup)
-		augroup = nil
+function M.disable()
+	if M.augroup then
+		pcall(vim.api.nvim_del_augroup_by_id, M.augroup)
+		M.augroup = nil
 	end
 
 	vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
-	last_pos = nil
+	M.last_pos = nil
 end
 
+---@param opts? SmudgeOpts
 function M.setup(opts)
 	M.opts = vim.tbl_deep_extend("force", {}, defaults, opts or {})
-	enable()
+	M.enable()
 end
 
-M.enable = enable
-M.disable = disable
-
 return M
+-- vim: set ts=4 sts=4 sw=0 noet ai si sta:
