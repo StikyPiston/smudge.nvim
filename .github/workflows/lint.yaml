@@ -1,0 +1,25 @@
+name: Lint with Luacheck
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install luarocks
+        run: sudo apt install luarocks
+
+      - name: Install luacheck
+        run: luarocks install luacheck --local
+
+      - name: Run Luacheck
+        run: /home/runner/.luarocks/bin/luacheck .
